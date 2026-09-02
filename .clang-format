@@ -1,0 +1,50 @@
+Language: Cpp
+BasedOnStyle: LLVM
+
+# Indentation and Tabs
+IndentWidth: 4
+TabWidth: 8
+UseTab: Never
+
+# Braces and Blocks
+BreakBeforeBraces: Attach
+SeparateDefinitionBlocks: Always
+KeepEmptyLinesAtTheStartOfBlocks: true
+
+# Inline Styles
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakTemplateDeclarations: Yes
+
+# Spacing
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+SpacesInAngles: false
+SpaceInEmptyParentheses: false
+Cpp11BracedListStyle: true
+
+# Alignment
+AlignConsecutiveAssignments: false
+AlignConsecutiveMacros: true
+AlignOperands: true
+DerivePointerAlignment: false
+PointerAlignment: Left
+
+# Function Parameters and Arguments
+# Force one-per-line behavior by breaking after open bracket and forbidding bin-packing
+AlignAfterOpenBracket: AlwaysBreak
+BinPackParameters: false
+BinPackArguments: false
+AllowAllParametersOfDeclarationOnNextLine: false
+PenaltyBreakBeforeFirstCallParameter: 1000
+
+# Constructors
+PackConstructorInitializers: Never
+BreakConstructorInitializers: BeforeColon
+ConstructorInitializerIndentWidth: 8
+
+# Column Limit and Sorting
+ColumnLimit: 120
+SortUsingDeclarations: false

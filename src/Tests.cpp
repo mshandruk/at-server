@@ -1,7 +1,7 @@
 #include <cassert>
 #include <iostream>
 
-#include "Match.hpp"
+#include "PatternMatcher.hpp"
 
 void testMatch() {
     assert(match("", ""));

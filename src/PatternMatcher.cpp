@@ -1,7 +1,7 @@
 #include <cstddef>
 #include <string>
 
-#include "Match.hpp"
+#include "PatternMatcher.hpp"
 
 bool match(const std::string& pattern, const std::string& text) {
     if (pattern.empty() && text.empty()) {

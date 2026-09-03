@@ -46,7 +46,7 @@ clang-tidy src/* -- -std=c++11
 
 ```bash
 mkdir -p build
-g++ -std=c++11 src/PatternMatcher.cpp src/Tests.cpp -o build/tests
+g++ -std=c++11 src/PatternMatcher.cpp src/RulesLoader.cpp src/Tests.cpp -o build/tests
 ```
 
 4. Run tests:

@@ -8,20 +8,28 @@ bool match(const std::string& pattern, const std::string& text) {
         return true;
     }
 
+    if (pattern.empty()) {
+        return false;
+    }
+
     std::size_t idxPattern = 0;
-    for (std::size_t idxText = 0; idxText < text.size() && idxPattern < pattern.size(); ++idxPattern, ++idxText) {
+    std::size_t idxText = 0;
+
+    for (; idxText < text.size() && idxPattern < pattern.size(); ++idxText, ++idxPattern) {
         if (text[idxText] == pattern[idxPattern]) {
             continue;
         }
 
-        if (pattern[idxPattern] == '.') {
+        const auto patternSymbol = pattern[idxPattern];
+        if (patternSymbol == '.' || patternSymbol == '*' && idxPattern + 1 >= pattern.size()) {
+            return true;
+        }
+
+        if (patternSymbol == '.' || patternSymbol == '*') {
             continue;
         }
 
-        if (pattern[idxPattern] == '*' && idxPattern + 1 >= pattern.size()) {
-            return true;
-        }
+        return false;
     }
-
-    return (idxPattern > 0 && idxPattern == pattern.size() || pattern[idxPattern] == '*');
+    return idxPattern == pattern.size() && idxText == text.size() || pattern[idxPattern] == '*';
 }

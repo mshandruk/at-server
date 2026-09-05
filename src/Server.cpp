@@ -1,6 +1,5 @@
 #include "Server.hpp"
 
-#include <atomic>
 #include <cerrno>
 #include <csignal>
 #include <fcntl.h>
@@ -10,60 +9,82 @@
 #include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
+#include <utility>
 
-#include "PatternMatcher.hpp"
-#include "RulesLoader.hpp"
+#include "RequestHandler.hpp"
 
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-std::atomic<bool> shouldRun = true;
+class FileDescriptor {
+  public:
+    explicit FileDescriptor(const std::string& filePath, int flags)
+            : fd_{::open(filePath.c_str(), flags)} { // NOLINTEXTLINE(cppcoreguidelines-pro-type-vararg)
 
-void signalHandler(int signum) {
-    if (signum == SIGINT) {
-        shouldRun = false;
-    }
-}
-
-std::string getResponse(const AtRules& rules, const std::string& text) {
-    for (const auto& rule : rules) {
-        if (match(rule.commandPattern, text)) {
-            return rule.response + "\r\n";
+        if (fd_ < 0) {
+            throw std::runtime_error("Failed to open: " + filePath);
         }
     }
-    return "ERROR\r\n";
+
+    [[nodiscard]] int get() const {
+        return fd_;
+    }
+
+    ~FileDescriptor() {
+        if (fd_ >= 0) {
+            ::close(fd_);
+        }
+    }
+
+    FileDescriptor(const FileDescriptor&) = delete;
+    FileDescriptor& operator=(const FileDescriptor&) = delete;
+
+    FileDescriptor(FileDescriptor&&) = default;
+    FileDescriptor& operator=(FileDescriptor&&) = default;
+
+  private:
+    int fd_;
+};
+
+volatile std::sig_atomic_t Server::shouldRun_ = 0;
+
+Server::Server(std::string ttyDev, const RequestHandler& handler)
+        : ttyDev_{std::move(ttyDev)},
+          requestHandler_{handler} {
 }
 
-void runServer(const AtRules& rules, const std::string& ttyDev) {
-    std::signal(SIGINT, signalHandler);
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
-    const int ttyFd = open(ttyDev.c_str(), O_RDWR | O_NOCTTY | O_CLOEXEC);
-    if (ttyFd < 0) {
-        throw std::runtime_error("Error open tty port: " + ttyDev);
-    }
+void Server::start() {
+    const FileDescriptor ttyFd(ttyDev_, O_RDWR | O_NOCTTY | O_CLOEXEC);
 
     struct termios tty {};
 
-    if (tcgetattr(ttyFd, &tty) == 0) {
-        cfmakeraw(&tty);
-        cfsetispeed(&tty, B115200);
-        cfsetospeed(&tty, B115200);
-        tty.c_cc[VMIN] = 0;
-        tty.c_cc[VTIME] = 1;
-        tcsetattr(ttyFd, TCSANOW, &tty);
+    if (::tcgetattr(ttyFd.get(), &tty) != 0) {
+        throw std::runtime_error("tcgetattr failed");
     }
 
-    std::cout << "At-server started and listen port: " + ttyDev << '\n';
-    std::string buffer;
+    ::cfmakeraw(&tty);
+    ::cfsetispeed(&tty, B115200);
+    ::cfsetospeed(&tty, B115200);
 
-    while (shouldRun) {
-        char ch{};
-        const ssize_t n = read(ttyFd, &ch, 1);
+    tty.c_cc[VMIN] = 0;
+    tty.c_cc[VTIME] = 1; // Unblock every 100ms.
+
+    ::tcsetattr(ttyFd.get(), TCSANOW, &tty);
+
+    shouldRun_ = 1;
+    setupSignal_(true);
+    std::cout << "AT-server started and listen port: " + ttyDev_ << '\n';
+    std::string buffer;
+    while (shouldRun_ != 0) {
+        char ch;
+        const ssize_t n = ::read(ttyFd.get(), &ch, 1);
+
         if (n < 0) {
             if (errno == EINTR) {
+                std::cerr << "Signal interrupt\n";
                 continue;
             }
-            std::cerr << "Read error stopping server\n";
+            std::cerr << "Read error occurred\n";
             break;
         }
+
         if (n == 0) {
             continue;
         }
@@ -73,14 +94,35 @@ void runServer(const AtRules& rules, const std::string& ttyDev) {
         }
 
         if (ch == '\r' || ch == '\n') {
-            auto response = getResponse(rules, buffer);
-            write(ttyFd, response.c_str(), response.size());
-            tcdrain(ttyFd);
+            auto response = requestHandler_.handleRequest(buffer);
+            if (!response.empty()) {
+                write(ttyFd.get(), response.c_str(), response.size());
+                tcdrain(ttyFd.get());
+            }
             buffer.clear();
         } else {
             buffer += ch;
         }
     }
-    std::cout << "At-server stopped\n";
-    close(ttyFd);
+    std::cout << "AT-server stopped\n";
+}
+
+void Server::setupSignal_(bool enable) {
+    struct sigaction sa {};
+
+    if (enable) {
+        sa.sa_handler = &Server::handleSignal_;
+    } else {
+        sa.sa_handler = SIG_DFL;
+    }
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+
+    sigaction(SIGINT, &sa, nullptr);
+}
+
+void Server::handleSignal_(int signum) {
+    if (signum == SIGINT) {
+        shouldRun_ = 0;
+    }
 }

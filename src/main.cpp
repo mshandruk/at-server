@@ -5,6 +5,7 @@
 #include <string>
 
 #include "ArgParser.hpp"
+#include "RequestHandlerImpl.hpp"
 #include "RulesLoader.hpp"
 #include "Server.hpp"
 
@@ -35,7 +36,9 @@ int main(int argc, char* argv[]) {
     ifs.close();
 
     try {
-        runServer(rules, programArgs.ttyDev);
+        const RequestHandlerImpl requestHandler(rules);
+        Server server(programArgs.ttyDev, requestHandler);
+        server.start();
     } catch (const std::exception& e) {
         std::cerr << e.what() << '\n';
         return EXIT_FAILURE;

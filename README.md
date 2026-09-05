@@ -27,6 +27,7 @@ cd at-server
 3. Build
 
 ```bash
+make clean
 make all
 ```
 

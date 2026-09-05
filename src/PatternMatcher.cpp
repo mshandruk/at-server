@@ -21,7 +21,7 @@ bool match(const std::string& pattern, const std::string& text) {
         }
 
         const auto patternSymbol = pattern[idxPattern];
-        if (patternSymbol == '.' || patternSymbol == '*' && idxPattern + 1 >= pattern.size()) {
+        if ((patternSymbol == '.' || patternSymbol == '*') && idxPattern + 1 >= pattern.size()) {
             return true;
         }
 
@@ -31,5 +31,5 @@ bool match(const std::string& pattern, const std::string& text) {
 
         return false;
     }
-    return idxPattern == pattern.size() && idxText == text.size() || pattern[idxPattern] == '*';
+    return (idxPattern == pattern.size() && idxText == text.size()) || pattern[idxPattern] == '*';
 }

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <csignal>
+#include <atomic>
 
 #include "RequestHandler.hpp"
 
@@ -12,8 +13,5 @@ class Server {
     private:
         std::string ttyDev_;
         const RequestHandler& requestHandler_;
-        static volatile std::sig_atomic_t shouldRun_;
-
-        static void setupSignal_(bool enable);
-        static void handleSignal_(int signum);
+        static std::atomic<bool> stopRequested_;
 };

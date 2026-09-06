@@ -1,5 +1,6 @@
 #include "Server.hpp"
 
+#include <atomic>
 #include <cerrno>
 #include <csignal>
 #include <fcntl.h>
@@ -16,7 +17,7 @@
 class FileDescriptor {
   public:
     explicit FileDescriptor(const std::string& filePath, int flags)
-            : fd_{::open(filePath.c_str(), flags)} { // NOLINTEXTLINE(cppcoreguidelines-pro-type-vararg)
+            : fd_{::open(filePath.c_str(), flags)} { // NOLINT
 
         if (fd_ < 0) {
             throw std::runtime_error("Failed to open: " + filePath);
@@ -43,7 +44,51 @@ class FileDescriptor {
     int fd_;
 };
 
-volatile std::sig_atomic_t Server::shouldRun_ = 0;
+class SignalHandlerGuard {
+  public:
+    explicit SignalHandlerGuard(std::atomic<bool>& stopRequested) {
+        stopRequested.store(false);
+        activeStopRequested_ = &stopRequested;
+        setupSignal_(true);
+    }
+
+    ~SignalHandlerGuard() {
+        setupSignal_(false);
+        activeStopRequested_ = nullptr;
+    }
+
+    SignalHandlerGuard(const SignalHandlerGuard&) = delete;
+    SignalHandlerGuard& operator=(const SignalHandlerGuard&) = delete;
+
+    SignalHandlerGuard(SignalHandlerGuard&&) = delete;
+    SignalHandlerGuard& operator=(SignalHandlerGuard&&) = delete;
+
+  private:
+    static std::atomic<bool>* activeStopRequested_;
+
+    static void handleSignal_(int signum) {
+        if (signum == SIGINT && activeStopRequested_ != nullptr) {
+            SignalHandlerGuard::activeStopRequested_->store(true);
+        }
+    }
+
+    static void setupSignal_(bool enable) {
+        struct sigaction sa {};
+
+        if (enable) {
+            sa.sa_handler = &handleSignal_;
+        } else {
+            sa.sa_handler = SIG_DFL;
+        }
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = 0;
+        sigaction(SIGINT, &sa, nullptr);
+    }
+};
+
+std::atomic<bool>* SignalHandlerGuard::activeStopRequested_{nullptr};
+
+std::atomic<bool> Server::stopRequested_{false};
 
 Server::Server(std::string ttyDev, const RequestHandler& handler)
         : ttyDev_{std::move(ttyDev)},
@@ -68,11 +113,11 @@ void Server::start() {
 
     ::tcsetattr(ttyFd.get(), TCSANOW, &tty);
 
-    shouldRun_ = 1;
-    setupSignal_(true);
+    const SignalHandlerGuard signalGuard(stopRequested_);
+
     std::cout << "AT-server started and listen port: " + ttyDev_ << '\n';
     std::string buffer;
-    while (shouldRun_ != 0) {
+    while (!stopRequested_.load()) {
         char ch;
         const ssize_t n = ::read(ttyFd.get(), &ch, 1);
 
@@ -105,24 +150,4 @@ void Server::start() {
         }
     }
     std::cout << "AT-server stopped\n";
-}
-
-void Server::setupSignal_(bool enable) {
-    struct sigaction sa {};
-
-    if (enable) {
-        sa.sa_handler = &Server::handleSignal_;
-    } else {
-        sa.sa_handler = SIG_DFL;
-    }
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-
-    sigaction(SIGINT, &sa, nullptr);
-}
-
-void Server::handleSignal_(int signum) {
-    if (signum == SIGINT) {
-        shouldRun_ = 0;
-    }
 }

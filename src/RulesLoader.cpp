@@ -5,6 +5,33 @@
 #include <istream>
 #include <string>
 
+std::string decodeEscapeSeq(const std::string& src) {
+    std::string result;
+    result.reserve(src.size());
+
+    for (std::size_t i = 0; i < src.size();) {
+        const char currCh = src[i];
+        if (currCh == '\\' && i + 1 < src.size()) {
+            const char nextCh = src[i + 1];
+            if (nextCh == 'r') {
+                result += '\r';
+                i += 2;
+                continue;
+            }
+
+            if (nextCh == 'n') {
+                result += '\n';
+                i += 2;
+                continue;
+            }
+        }
+        result += currCh;
+        ++i;
+    }
+
+    return result;
+}
+
 AtRules loadRules(std::istream& in) {
     AtRules rules;
     std::string line;
@@ -18,10 +45,8 @@ AtRules loadRules(std::istream& in) {
             continue;
         }
 
-        rules.emplace_back(AtRule{
-            line.substr(0, pos),
-            line.substr(pos + 1),
-        });
+        auto response = decodeEscapeSeq(line.substr(pos + 1));
+        rules.push_back({line.substr(0, pos), response});
     }
 
     return rules;

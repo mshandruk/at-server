@@ -6,7 +6,7 @@ Modem emulation server.
 
 - **OS:** Linux (tested on Ubuntu 24.04)
 - **Compiler:** GCC (g++) 13.3.0 or higher
-- **Standard:** C++11
+- **Standard:** C++11 or higher
 
 ## Getting Started
 
@@ -44,7 +44,7 @@ socat -d -d pty,raw,echo=0 pty,raw,echo=0
 2026/09/04 01:07:30 socat[76159] N PTY is /dev/pts/3
 ```
 
-2. Run at server
+2. Run at_server
 
 ```bash
 ./build/at_server --rules rules.cfg --tty /dev/pts/2
@@ -56,12 +56,10 @@ socat -d -d pty,raw,echo=0 pty,raw,echo=0
 echo -e "AT\r" > /dev/pts/3
 ```
 
-```bash
-cat /dev/pts/3
-```
+4. Response result
 
 ```text
-mshandruk@saturn:~$ cat /dev/pts/3
+cat /dev/pts/3
 OK
 ```
 
@@ -89,10 +87,4 @@ make lint
 
 ```bash
 make tests
-```
-
-4. Run tests:
-
-```bash
-./build/tests
 ```

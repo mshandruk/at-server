@@ -5,31 +5,29 @@
 #include <istream>
 #include <string>
 
-std::string decodeEscapeSeq(const std::string& src) {
-    std::string result;
-    result.reserve(src.size());
-
-    for (std::size_t i = 0; i < src.size();) {
-        const char currCh = src[i];
-        if (currCh == '\\' && i + 1 < src.size()) {
-            const char nextCh = src[i + 1];
+std::string decodeEscapeSeq(std::string src) {
+    std::size_t writeIdx = 0;
+    for (std::size_t readIdx = 0; readIdx < src.size();) {
+        const char currCh = src[readIdx];
+        if (currCh == '\\' && readIdx + 1 < src.size()) {
+            const char nextCh = src[readIdx + 1];
             if (nextCh == 'r') {
-                result += '\r';
-                i += 2;
+                src[writeIdx++] = '\r';
+                readIdx += 2; // skip currCh and nextCh
                 continue;
             }
 
             if (nextCh == 'n') {
-                result += '\n';
-                i += 2;
+                src[writeIdx++] = '\n';
+                readIdx += 2;
                 continue;
             }
         }
-        result += currCh;
-        ++i;
+        src[writeIdx++] = src[readIdx++];
     }
 
-    return result;
+    src.resize(writeIdx);
+    return src;
 }
 
 AtRules loadRules(std::istream& in) {
